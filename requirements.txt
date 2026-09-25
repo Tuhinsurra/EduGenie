@@ -1,0 +1,14 @@
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.34.0,<1.0.0
+jinja2>=3.1.3,<4.0.0
+pydantic>=2.9.0,<3.0.0
+pydantic-settings>=2.6.0,<3.0.0
+google-genai>=1.3.0,<2.0.0
+python-dotenv>=1.0.0,<2.0.0
+httpx>=0.27.0,<1.0.0
+pytest>=8.0.0,<9.0.0
+
+# Optional: For local offline LaMini-Flan-T5-783M model (requires ~3GB download):
+# transformers>=4.48.0
+# torch>=2.2.0
+# sentencepiece>=0.2.0

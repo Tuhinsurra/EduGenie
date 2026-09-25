@@ -1,7 +1,7 @@
 """
-Summary Module for EduGenie
-Implements educational passage summarization using Google Gemini.
+Summarization Module for EduGenie
+Condenses educational passages and study material using Google Gemini.
 """
-from app.services.summary_module import summarize_text
+from main import summarize_text
 
 __all__ = ["summarize_text"]

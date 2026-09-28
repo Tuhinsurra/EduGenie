@@ -1,5 +1,5 @@
 """
-EduGenie: Google Gemini Powered Learning Assistant
+EduGenie: AI Powered Learning Assistant
 Self-contained root application for local development and Vercel Serverless deployment.
 """
 import os
@@ -1084,7 +1084,7 @@ textarea {
       <div class="nav-actions">
         <div class="status-pill">
           <span class="status-dot"></span>
-          <span class="status-text">Gemini 1.5 Active</span>
+          <span class="status-text">EduGenie Active</span>
         </div>
 
         <button id="themeToggleBtn" class="icon-btn" onclick="toggleTheme()" title="Toggle Theme" aria-label="Toggle Theme">
@@ -1315,7 +1315,7 @@ textarea {
     <footer class="footer">
       <div class="footer-divider"></div>
       <div class="footer-content">
-        <p><strong>EduGenie Platform</strong> &bull; Powered by Google Gemini 1.5 &bull; Enterprise Learning Assistant</p>
+        <p><strong>EduGenie Platform</strong> &bull; Autonomous Next-Gen Learning Assistant</p>
       </div>
     </footer>
   </div>
@@ -1413,7 +1413,7 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-function setLoading(btn, resultDiv, text = "Analyzing with Gemini...") {
+function setLoading(btn, resultDiv, text = "Analyzing with EduGenie AI...") {
   btn.disabled = true;
   btn.dataset.orig = btn.innerHTML;
   btn.innerHTML = `<span class="pulse-spinner"></span> <span>Generating...</span>`;
@@ -1441,7 +1441,7 @@ async function handleQaSubmit(event) {
   const text = input.value.trim();
   if (!text) return;
 
-  setLoading(btn, resultDiv, "Generating response with Gemini 1.5...");
+  setLoading(btn, resultDiv, "Generating response with EduGenie AI...");
   try {
     const res = await fetch("/qa", {
       method: "POST",
@@ -1455,7 +1455,7 @@ async function handleQaSubmit(event) {
       <div class="result-toolbar">
         <div class="result-title">✨ Answer</div>
         <div class="toolbar-actions">
-          <span class="model-badge">Gemini 1.5</span>
+          <span class="model-badge">AI Assistant</span>
           <button class="copy-btn" onclick="copyToClipboard('qaTextBody', this)">📋 Copy</button>
         </div>
       </div>
@@ -1491,7 +1491,7 @@ async function handleExplainSubmit(event) {
       <div class="result-toolbar">
         <div class="result-title">💡 Simplified Explanation</div>
         <div class="toolbar-actions">
-          <span class="model-badge">Gemini 1.5</span>
+          <span class="model-badge">AI Assistant</span>
           <button class="copy-btn" onclick="copyToClipboard('explainTextBody', this)">📋 Copy</button>
         </div>
       </div>
@@ -1527,7 +1527,7 @@ async function handleSummarySubmit(event) {
       <div class="result-toolbar">
         <div class="result-title">📝 Executive Summary</div>
         <div class="toolbar-actions">
-          <span class="model-badge">Gemini 1.5</span>
+          <span class="model-badge">AI Assistant</span>
           <button class="copy-btn" onclick="copyToClipboard('summaryTextBody', this)">📋 Copy</button>
         </div>
       </div>
@@ -1859,12 +1859,15 @@ class HealthResponse(BaseModel):
     local_explainer_enabled: bool
 
 # ---------------------------------------------------------
-# Gemini AI Engine with Automatic Fallback & Resiliency
+# AI Tutoring Engine with Dynamic Model Discovery & Fallback
 # ---------------------------------------------------------
 SYSTEM_PROMPT = """You are EduGenie, an intelligent, friendly educational assistant.
 Provide accurate, age-appropriate, concise, and structured explanations.
 If facts are uncertain, state uncertainty clearly. Do not invent false citations.
 Prefer simple language and useful real-world examples."""
+
+_CACHED_MODELS: Optional[List[str]] = None
+_CACHE_TIMESTAMP: float = 0.0
 
 def _get_gemini_client():
     if not GEMINI_API_KEY or GEMINI_API_KEY == "put_your_google_ai_studio_key_here":
@@ -1873,11 +1876,56 @@ def _get_gemini_client():
         from google import genai
         return genai.Client(api_key=GEMINI_API_KEY)
     except Exception as e:
-        print(f"[EduGenie] GenAI client init note: {e}")
+        print(f"[EduGenie] AI client init note: {e}")
         return None
 
+def _discover_active_models() -> List[str]:
+    """Dynamically queries the API to discover active models supporting generateContent."""
+    global _CACHED_MODELS, _CACHE_TIMESTAMP
+    now = time.time()
+    if _CACHED_MODELS and (now - _CACHE_TIMESTAMP < 300):
+        return _CACHED_MODELS
+
+    models_found = []
+    if GEMINI_API_KEY and GEMINI_API_KEY != "put_your_google_ai_studio_key_here":
+        import urllib.request
+        import urllib.error
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
+        req = urllib.request.Request(url, headers={"x-goog-api-key": GEMINI_API_KEY})
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                for m in data.get("models", []):
+                    methods = m.get("supportedGenerationMethods", [])
+                    if "generateContent" in methods:
+                        name = m.get("name", "").replace("models/", "").strip()
+                        if name and "1.5" not in name:  # Skip deprecated 1.5 models
+                            models_found.append(name)
+        except urllib.error.HTTPError as e:
+            if e.code == 401:
+                raise RuntimeError(
+                    "API Authentication Failed (401 Unauthorized): Your API key is invalid or was revoked. "
+                    "Please generate a fresh free API key from https://aistudio.google.com/app/apikey and update GEMINI_API_KEY in your Vercel Environment Variables."
+                )
+        except Exception:
+            pass
+
+    if models_found:
+        flash_models = [m for m in models_found if "flash" in m]
+        other_models = [m for m in models_found if "flash" not in m]
+        sorted_models = flash_models + other_models
+        _CACHED_MODELS = sorted_models
+        _CACHE_TIMESTAMP = now
+        return sorted_models
+
+    # Fallback to modern active models (excludes retired 1.5 models)
+    default_fallback = [GEMINI_MODEL, "gemini-3.8-flash", "gemini-2.5-flash", "gemini-3.5-flash", "gemini-2.0-flash"]
+    seen = set()
+    return [m for m in default_fallback if m and "1.5" not in m and not (m in seen or seen.add(m))]
+
 def _call_gemini_direct_rest(prompt: str, is_json: bool = False, model_name: str = None) -> str:
-    """Zero-dependency direct REST call to Google Generative Language API."""
+    """Zero-dependency direct REST call to AI Text Generation API."""
     import urllib.request
     import urllib.error
     
@@ -1911,33 +1959,30 @@ def _call_gemini_direct_rest(prompt: str, is_json: bool = False, model_name: str
             pass
         if e.code == 401:
             raise RuntimeError(
-                "Gemini API Authentication Failed (401 Unauthorized): Your Google Gemini API key is missing, expired, or was revoked. "
+                "API Authentication Failed (401 Unauthorized): Your API key is invalid or was revoked. "
                 "Please generate a fresh free API key from https://aistudio.google.com/app/apikey and update GEMINI_API_KEY in your Vercel Environment Variables."
             )
         elif e.code == 429:
-            raise RuntimeError("Gemini API rate limit exceeded (429 Too Many Requests). Please try again in a few seconds.")
+            raise RuntimeError("API rate limit exceeded (429 Too Many Requests). Please try again in a few seconds.")
         elif e.code == 404:
             raise RuntimeError(f"Model '{target_model}' not found or unsupported (404).")
         else:
-            raise RuntimeError(f"Gemini API request failed ({e.code}): {err_msg or e.msg}")
+            raise RuntimeError(f"AI API request failed ({e.code}): {err_msg or e.msg}")
     except Exception as e:
-        raise RuntimeError(f"Gemini connection error: {e}")
+        raise RuntimeError(f"AI service connection error: {e}")
 
 def call_gemini_text(prompt: str) -> str:
     if not GEMINI_API_KEY or GEMINI_API_KEY == "put_your_google_ai_studio_key_here":
         raise RuntimeError(
-            "Google Gemini API key is not configured. Please get a free API key from https://aistudio.google.com/app/apikey "
+            "API key is not configured. Please get a free API key from https://aistudio.google.com/app/apikey "
             "and add GEMINI_API_KEY to your Vercel Environment Variables."
         )
 
-    candidate_models = [GEMINI_MODEL, "gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
-    seen = set()
-    models_to_try = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
-
+    models_to_try = _discover_active_models()
     client = _get_gemini_client()
     last_error = None
 
-    # 1. Try google-genai SDK
+    # 1. Try Python SDK with discovered models
     if client:
         for model_name in models_to_try:
             try:
@@ -1951,13 +1996,13 @@ def call_gemini_text(prompt: str) -> str:
                 err_str = str(exc)
                 if "401" in err_str or "UNAUTHENTICATED" in err_str:
                     raise RuntimeError(
-                        "Gemini API Authentication Failed (401 Unauthorized): Your Google Gemini API key is invalid or was revoked by Google. "
+                        "API Authentication Failed (401 Unauthorized): Your API key is invalid or was revoked. "
                         "Please generate a fresh free API key from https://aistudio.google.com/app/apikey and update GEMINI_API_KEY in Vercel Environment Variables."
                     )
                 last_error = exc
                 continue
 
-    # 2. Try direct REST with all candidate models
+    # 2. Try direct REST with discovered models
     for model_name in models_to_try:
         try:
             return _call_gemini_direct_rest(prompt, model_name=model_name)
@@ -1969,21 +2014,18 @@ def call_gemini_text(prompt: str) -> str:
             last_error = exc
 
     raise RuntimeError(
-        f"Unable to reach Google Gemini API ({last_error or 'No response'}). "
+        f"Unable to reach the AI service ({last_error or 'No response'}). "
         "Please check your GEMINI_API_KEY in Vercel Environment Variables."
     )
 
 def call_gemini_structured(prompt: str, schema_cls):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "put_your_google_ai_studio_key_here":
         raise RuntimeError(
-            "Google Gemini API key is not configured. Please get a free API key from https://aistudio.google.com/app/apikey "
+            "API key is not configured. Please get a free API key from https://aistudio.google.com/app/apikey "
             "and add GEMINI_API_KEY to your Vercel Environment Variables."
         )
 
-    candidate_models = [GEMINI_MODEL, "gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
-    seen = set()
-    models_to_try = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
-
+    models_to_try = _discover_active_models()
     client = _get_gemini_client()
     if client:
         try:
@@ -2006,7 +2048,7 @@ def call_gemini_structured(prompt: str, schema_cls):
                 except Exception as exc:
                     if "401" in str(exc) or "UNAUTHENTICATED" in str(exc):
                         raise RuntimeError(
-                            "Gemini API Authentication Failed (401 Unauthorized): Your Google Gemini API key is invalid or was revoked by Google. "
+                            "API Authentication Failed (401 Unauthorized): Your API key is invalid or was revoked. "
                             "Please generate a fresh free API key from https://aistudio.google.com/app/apikey and update GEMINI_API_KEY in Vercel Environment Variables."
                         )
                     continue
@@ -2136,10 +2178,10 @@ Material:
     except RuntimeError as rerr:
         if "401" in str(rerr) or "API key" in str(rerr) or "Unauthorized" in str(rerr):
             raise rerr
-        print(f"[EduGenie] Quiz Gemini call note: {rerr}")
+        print(f"[EduGenie] Quiz AI call note: {rerr}")
         return _generate_fallback_quiz(text)
     except Exception as e:
-        print(f"[EduGenie] Quiz Gemini call note: {e}")
+        print(f"[EduGenie] Quiz AI call note: {e}")
         return _generate_fallback_quiz(text)
 
 def get_learning_recommendations(topic: str) -> LearningPathResponse:
@@ -2160,18 +2202,18 @@ Conclude with 3-4 actionable practice tips for the student.
     except RuntimeError as rerr:
         if "401" in str(rerr) or "API key" in str(rerr) or "Unauthorized" in str(rerr):
             raise rerr
-        print(f"[EduGenie] Learning path Gemini call note: {rerr}")
+        print(f"[EduGenie] Learning path AI call note: {rerr}")
         return _generate_fallback_learning_path(topic)
     except Exception as e:
-        print(f"[EduGenie] Learning path Gemini call note: {e}")
+        print(f"[EduGenie] Learning path AI call note: {e}")
         return _generate_fallback_learning_path(topic)
 
 # ---------------------------------------------------------
 # FastAPI App Initialization
 # ---------------------------------------------------------
 app = FastAPI(
-    title="EduGenie: Google Gemini Powered Learning Assistant",
-    description="Lightweight AI-powered educational assistant built with FastAPI and Google Gemini.",
+    title="EduGenie: AI Powered Learning Assistant",
+    description="Lightweight AI-powered educational assistant built with FastAPI.",
     version="1.0.0",
 )
 

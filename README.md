@@ -1,4 +1,4 @@
-# EduGenie: Google Gemini Powered Learning Assistant 💡
+# EduGenie: AI Powered Learning Assistant 💡
 
 EduGenie is a lightweight AI-powered educational assistant that simplifies learning through generative AI. Designed for students of all academic levels, EduGenie enables users to ask questions, understand complex topics, generate interactive quizzes, summarize passages, and receive structured learning roadmaps.
 
@@ -19,7 +19,7 @@ EduGenie/
 │   ├── config.py               # Pydantic configuration & environment variables
 │   ├── schemas.py              # Pydantic data models & request/response schemas
 │   ├── services/
-│   │   ├── gemini_service.py   # Google Gemini API client integration
+│   │   ├── gemini_service.py   # AI API client integration
 │   │   ├── explanation_module.py # Explanation logic (with Gemini fallback)
 │   │   ├── local_explainer.py  # Local LaMini-Flan-T5 model loader (optional)
 │   │   ├── quiz_module.py      # MCQ generator & structured validator
@@ -93,7 +93,7 @@ pip install -r requirements.txt
 
 ---
 
-### Step 4: Configure Your Google Gemini API Key
+### Step 4: Configure Your AI API Key
 
 1. Get a free API key from [Google AI Studio](https://aistudio.google.com/).
 2. In VS Code, open the `.env` file in the project root.
